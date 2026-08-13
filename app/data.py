@@ -1,0 +1,3 @@
+usuarios = []
+tareas = []
+actividades = []
