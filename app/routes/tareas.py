@@ -1,30 +1,48 @@
-from fastapi import APIRouter, HTTPException, status
-from app.models.schemas import TareaCreate, TareaResponse
-from app.routes.usuarios import usuarios_db
-from typing import List
+from fastapi import APIRouter, HTTPException
+from app.models.esquemas import TareaCrear, TareaRespuesta
+from app.routes.usuarios import usuarios
 
-router = APIRouter(prefix="/tareas", tags=["Tareas"])
+router = APIRouter(
+    prefix="/tareas",
+    tags=["Tareas"]
+)
 
-# Base de datos en memoria
-tareas_db = []
-tarea_id_counter = 1
+tareas = []
+contador_id = 1
 
-@router.post("/", response_model=TareaResponse, status_code=status.HTTP_201_CREATED)
-def crear_tarea(tarea: TareaCreate):
-    # Validar que el usuario existe
-    usuario_existe = any(u["id"] == tarea.usuario_id for u in usuarios_db)
+
+@router.post("/", response_model=TareaRespuesta, status_code=201)
+def crear_tarea(tarea: TareaCrear):
+    global contador_id
+
+    usuario_existe = any(
+        usuario["id"] == tarea.usuario_id
+        for usuario in usuarios
+    )
+
     if not usuario_existe:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
+            status_code=404,
+            detail="El usuario no existe"
         )
-    
-    nueva_tarea = tarea.model_dump()
-    nueva_tarea["id"] = tarea_id_counter
-    tareas_db.append(nueva_tarea)
-    tarea_id_counter += 1
+
+    nueva_tarea = {
+        "id": contador_id,
+        "nombre": tarea.nombre,
+        "descripcion": tarea.descripcion,
+        "estado": tarea.estado,
+        "porcentaje_avance": tarea.porcentaje_avance,
+        "fecha_inicio": tarea.fecha_inicio,
+        "fecha_final": tarea.fecha_final,
+        "usuario_id": tarea.usuario_id
+    }
+
+    tareas.append(nueva_tarea)
+    contador_id += 1
+
     return nueva_tarea
 
-@router.get("/", response_model=List[TareaResponse])
+
+@router.get("/")
 def listar_tareas():
-    return tareas_db
+    return tareas
