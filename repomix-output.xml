@@ -1,0 +1,343 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+app/
+  models/
+    __init__.py
+    esquemas.py
+  routes/
+    __init__.py
+    actividades.py
+    tareas.py
+    usuarios.py
+  __init__.py
+  main.py
+.gitignore
+README.md
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="app/models/__init__.py">
+
+</file>
+
+<file path="app/models/esquemas.py">
+from pydantic import BaseModel, EmailStr
+from datetime import date
+
+
+class UsuarioCrear(BaseModel):
+    nombre: str
+    correo: EmailStr
+
+
+class UsuarioRespuesta(UsuarioCrear):
+    id: int
+
+
+class TareaCrear(BaseModel):
+    nombre: str
+    descripcion: str
+    estado: str
+    porcentaje_avance: float
+    fecha_inicio: date
+    fecha_final: date
+    usuario_id: int
+
+
+class TareaRespuesta(TareaCrear):
+    id: int
+
+
+class ActividadCrear(BaseModel):
+    nombre: str
+    descripcion: str
+    estado: str
+    fecha: date
+    completada: bool
+    tarea_id: int
+
+
+class ActividadRespuesta(ActividadCrear):
+    id: int
+</file>
+
+<file path="app/routes/__init__.py">
+
+</file>
+
+<file path="app/__init__.py">
+
+</file>
+
+<file path="README.md">
+autora: Angelica 
+Ficha: 3407186
+</file>
+
+<file path="requirements.txt">
+fastapi
+uvicorn
+sqlmodel
+psycopg2-binary
+python-dotenv
+</file>
+
+<file path="app/routes/actividades.py">
+from fastapi import APIRouter, HTTPException
+from app.models.esquemas import ActividadCrear, ActividadRespuesta
+from app.routes.tareas import tareas
+
+router = APIRouter(
+    tags=["Actividades"]
+)
+
+actividades = []
+contador_id = 1
+
+
+@router.post(
+    "/tareas/{tarea_id}/actividades/",
+    response_model=ActividadRespuesta,
+    status_code=201
+)
+def crear_actividad(tarea_id: int, actividad: ActividadCrear):
+    global contador_id
+
+    tarea_existe = any(
+        tarea["id"] == tarea_id
+        for tarea in tareas
+    )
+
+    if not tarea_existe:
+        raise HTTPException(
+            status_code=404,
+            detail="La tarea no existe"
+        )
+
+    nueva_actividad = {
+        "id": contador_id,
+        "nombre": actividad.nombre,
+        "descripcion": actividad.descripcion,
+        "estado": actividad.estado,
+        "fecha": actividad.fecha,
+        "completada": actividad.completada,
+        "tarea_id": tarea_id
+    }
+
+    actividades.append(nueva_actividad)
+    contador_id += 1
+
+    return nueva_actividad
+
+
+@router.get("/actividades/")
+def listar_actividades():
+    return actividades
+
+
+@router.patch("/actividades/{actividad_id}")
+def cambiar_completada(actividad_id: int):
+    for actividad in actividades:
+        if actividad["id"] == actividad_id:
+            actividad["completada"] = not actividad["completada"]
+            return actividad
+
+    raise HTTPException(
+        status_code=404,
+        detail="La actividad no existe"
+    )
+</file>
+
+<file path="app/routes/tareas.py">
+from fastapi import APIRouter, HTTPException
+from app.models.esquemas import TareaCrear, TareaRespuesta
+from app.routes.usuarios import usuarios
+
+router = APIRouter(
+    prefix="/tareas",
+    tags=["Tareas"]
+)
+
+tareas = []
+contador_id = 1
+
+
+@router.post("/", response_model=TareaRespuesta, status_code=201)
+def crear_tarea(tarea: TareaCrear):
+    global contador_id
+
+    usuario_existe = any(
+        usuario["id"] == tarea.usuario_id
+        for usuario in usuarios
+    )
+
+    if not usuario_existe:
+        raise HTTPException(
+            status_code=404,
+            detail="El usuario no existe"
+        )
+
+    nueva_tarea = {
+        "id": contador_id,
+        "nombre": tarea.nombre,
+        "descripcion": tarea.descripcion,
+        "estado": tarea.estado,
+        "porcentaje_avance": tarea.porcentaje_avance,
+        "fecha_inicio": tarea.fecha_inicio,
+        "fecha_final": tarea.fecha_final,
+        "usuario_id": tarea.usuario_id
+    }
+
+    tareas.append(nueva_tarea)
+    contador_id += 1
+
+    return nueva_tarea
+
+
+@router.get("/")
+def listar_tareas():
+    resultado = []
+    for tarea in tareas:
+        usuario = next((u for u in usuarios if u["id"] == tarea["usuario_id"]), None)
+        resultado.append({
+            **tarea,
+            "usuario": usuario
+        })
+    return resultado
+</file>
+
+<file path="app/routes/usuarios.py">
+from fastapi import APIRouter, HTTPException
+from app.models.esquemas import UsuarioCrear, UsuarioRespuesta
+
+router = APIRouter(
+    prefix="/usuarios",
+    tags=["Usuarios"]
+)
+
+usuarios = []
+contador_id = 1
+
+
+@router.post("/", response_model=UsuarioRespuesta, status_code=201)
+def crear_usuario(usuario: UsuarioCrear):
+    global contador_id
+
+    for existente in usuarios:
+        if existente["correo"] == usuario.correo:
+            raise HTTPException(
+                status_code=400,
+                detail="El correo ya está registrado"
+            )
+
+    nuevo_usuario = {
+        "id": contador_id,
+        "nombre": usuario.nombre,
+        "correo": usuario.correo
+    }
+
+    usuarios.append(nuevo_usuario)
+    contador_id += 1
+
+    return nuevo_usuario
+
+
+@router.get("/")
+def listar_usuarios():
+    return usuarios
+
+
+@router.get("/{usuario_id}")
+def obtener_usuario(usuario_id: int):
+    from app.routes.tareas import tareas
+
+    usuario = next((u for u in usuarios if u["id"] == usuario_id), None)
+    if not usuario:
+        raise HTTPException(
+            status_code=404,
+            detail="El usuario no existe"
+        )
+
+    tareas_usuario = [t for t in tareas if t["usuario_id"] == usuario_id]
+
+    return {
+        "id": usuario["id"],
+        "nombre": usuario["nombre"],
+        "correo": usuario["correo"],
+        "tareas": tareas_usuario
+    }
+</file>
+
+<file path="app/main.py">
+from fastapi import FastAPI
+from app.routes import usuarios, tareas, actividades
+
+app = FastAPI(
+    title="Gestión de Tareas API",
+    description="API para gestión de tareas con usuarios y actividades - Versión Memoria",
+    version="1.0.0"
+)
+
+# Incluir routers
+app.include_router(usuarios.router)
+app.include_router(tareas.router)
+app.include_router(actividades.router)
+
+@app.get("/")
+def root():
+    return {"message": "API de Gestión de Tareas - Versión Memoria", "docs": "/docs"}
+</file>
+
+<file path=".gitignore">
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+__pycache__/
+</file>
+
+</files>

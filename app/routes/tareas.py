@@ -45,4 +45,11 @@ def crear_tarea(tarea: TareaCrear):
 
 @router.get("/")
 def listar_tareas():
-    return tareas
+    resultado = []
+    for tarea in tareas:
+        usuario = next((u for u in usuarios if u["id"] == tarea["usuario_id"]), None)
+        resultado.append({
+            **tarea,
+            "usuario": usuario
+        })
+    return resultado

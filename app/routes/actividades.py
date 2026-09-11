@@ -3,7 +3,6 @@ from app.models.esquemas import ActividadCrear, ActividadRespuesta
 from app.routes.tareas import tareas
 
 router = APIRouter(
-    prefix="/actividades",
     tags=["Actividades"]
 )
 
@@ -46,16 +45,16 @@ def crear_actividad(tarea_id: int, actividad: ActividadCrear):
     return nueva_actividad
 
 
-@router.get("/")
+@router.get("/actividades/")
 def listar_actividades():
     return actividades
 
 
 @router.patch("/actividades/{actividad_id}")
-def cambiar_completada(actividad_id: int, completada: bool):
+def cambiar_completada(actividad_id: int):
     for actividad in actividades:
         if actividad["id"] == actividad_id:
-            actividad["completada"] = completada
+            actividad["completada"] = not actividad["completada"]
             return actividad
 
     raise HTTPException(

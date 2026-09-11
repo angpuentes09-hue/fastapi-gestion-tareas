@@ -36,3 +36,24 @@ def crear_usuario(usuario: UsuarioCrear):
 @router.get("/")
 def listar_usuarios():
     return usuarios
+
+
+@router.get("/{usuario_id}")
+def obtener_usuario(usuario_id: int):
+    from app.routes.tareas import tareas
+
+    usuario = next((u for u in usuarios if u["id"] == usuario_id), None)
+    if not usuario:
+        raise HTTPException(
+            status_code=404,
+            detail="El usuario no existe"
+        )
+
+    tareas_usuario = [t for t in tareas if t["usuario_id"] == usuario_id]
+
+    return {
+        "id": usuario["id"],
+        "nombre": usuario["nombre"],
+        "correo": usuario["correo"],
+        "tareas": tareas_usuario
+    }
