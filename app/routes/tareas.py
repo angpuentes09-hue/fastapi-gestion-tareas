@@ -1,48 +1,52 @@
-from fastapi import APIRouter, HTTPException
-from app.models.esquemas import TareaCrear, TareaRespuesta
-from app.routes.usuarios import usuarios
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+
+from app.database import get_session
+from app.models.modelos import Tarea, Usuario
+# 👇 IMPORTANTE: Importamos TareaConUsuarioRespuesta
+from app.models.esquemas import TareaCrear, TareaRespuesta, TareaConUsuarioRespuesta
+
 
 router = APIRouter(
     prefix="/tareas",
     tags=["Tareas"]
 )
 
-tareas = []
-contador_id = 1
-
 
 @router.post("/", response_model=TareaRespuesta, status_code=201)
-def crear_tarea(tarea: TareaCrear):
-    global contador_id
+def crear_tarea(
+    tarea: TareaCrear,
+    session: Session = Depends(get_session)
+):
+    usuario = session.get(Usuario, tarea.usuario_id)
 
-    usuario_existe = any(
-        usuario["id"] == tarea.usuario_id
-        for usuario in usuarios
-    )
-
-    if not usuario_existe:
+    if not usuario:
         raise HTTPException(
             status_code=404,
             detail="El usuario no existe"
         )
 
-    nueva_tarea = {
-        "id": contador_id,
-        "nombre": tarea.nombre,
-        "descripcion": tarea.descripcion,
-        "estado": tarea.estado,
-        "porcentaje_avance": tarea.porcentaje_avance,
-        "fecha_inicio": tarea.fecha_inicio,
-        "fecha_final": tarea.fecha_final,
-        "usuario_id": tarea.usuario_id
-    }
+    nueva_tarea = Tarea(
+        nombre=tarea.nombre,
+        descripcion=tarea.descripcion,
+        estado=tarea.estado,
+        porcentaje_avance=tarea.porcentaje_avance,
+        fecha_inicio=tarea.fecha_inicio,
+        fecha_final=tarea.fecha_final,
+        usuario_id=tarea.usuario_id
+    )
 
-    tareas.append(nueva_tarea)
-    contador_id += 1
+    session.add(nueva_tarea)
+    session.commit()
+    session.refresh(nueva_tarea)
 
     return nueva_tarea
 
 
-@router.get("/")
-def listar_tareas():
+# 👇 CAMBIO AQUÍ: Cambiamos TareaRespuesta por TareaConUsuarioRespuesta
+@router.get("/", response_model=list[TareaConUsuarioRespuesta])
+def listar_tareas(
+    session: Session = Depends(get_session)
+):
+    tareas = session.exec(select(Tarea)).all()
     return tareas

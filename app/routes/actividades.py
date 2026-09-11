@@ -1,14 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+
+from app.database import get_session
+from app.models.modelos import Actividad, Tarea
 from app.models.esquemas import ActividadCrear, ActividadRespuesta
-from app.routes.tareas import tareas
+
 
 router = APIRouter(
-    prefix="/actividades",
     tags=["Actividades"]
 )
-
-actividades = []
-contador_id = 1
 
 
 @router.post(
@@ -16,49 +16,61 @@ contador_id = 1
     response_model=ActividadRespuesta,
     status_code=201
 )
-def crear_actividad(tarea_id: int, actividad: ActividadCrear):
-    global contador_id
+def crear_actividad(
+    tarea_id: int,
+    actividad: ActividadCrear,
+    session: Session = Depends(get_session)
+):
+    tarea = session.get(Tarea, tarea_id)
 
-    tarea_existe = any(
-        tarea["id"] == tarea_id
-        for tarea in tareas
-    )
-
-    if not tarea_existe:
+    if not tarea:
         raise HTTPException(
             status_code=404,
             detail="La tarea no existe"
         )
 
-    nueva_actividad = {
-        "id": contador_id,
-        "nombre": actividad.nombre,
-        "descripcion": actividad.descripcion,
-        "estado": actividad.estado,
-        "fecha": actividad.fecha,
-        "completada": actividad.completada,
-        "tarea_id": tarea_id
-    }
+    nueva_actividad = Actividad(
+        nombre=actividad.nombre,
+        descripcion=actividad.descripcion,
+        estado=actividad.estado,
+        fecha=actividad.fecha,
+        completada=actividad.completada,
+        tarea_id=tarea_id
+    )
 
-    actividades.append(nueva_actividad)
-    contador_id += 1
+    session.add(nueva_actividad)
+    session.commit()
+    session.refresh(nueva_actividad)
 
     return nueva_actividad
 
 
-@router.get("/")
-def listar_actividades():
+@router.get("/actividades/", response_model=list[ActividadRespuesta])
+def listar_actividades(
+    session: Session = Depends(get_session)
+):
+    actividades = session.exec(select(Actividad)).all()
     return actividades
 
 
-@router.patch("/actividades/{actividad_id}")
-def cambiar_completada(actividad_id: int, completada: bool):
-    for actividad in actividades:
-        if actividad["id"] == actividad_id:
-            actividad["completada"] = completada
-            return actividad
+@router.patch("/actividades/{actividad_id}", response_model=ActividadRespuesta)
+def cambiar_completada(
+    actividad_id: int,
+    session: Session = Depends(get_session)
+):
+    actividad = session.get(Actividad, actividad_id)
 
-    raise HTTPException(
-        status_code=404,
-        detail="La actividad no existe"
-    )
+    if not actividad:
+        raise HTTPException(
+            status_code=404,
+            detail="La actividad no existe"
+        )
+
+    # Invierte de True a False y de False a True
+    actividad.completada = not actividad.completada
+
+    session.add(actividad)
+    session.commit()
+    session.refresh(actividad)
+
+    return actividad

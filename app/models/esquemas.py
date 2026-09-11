@@ -24,6 +24,8 @@ class TareaCrear(BaseModel):
 class TareaRespuesta(TareaCrear):
     id: int
 
+class TareaConUsuarioRespuesta(TareaRespuesta):
+    usuario: UsuarioRespuesta | None = None
 
 class ActividadCrear(BaseModel):
     nombre: str
